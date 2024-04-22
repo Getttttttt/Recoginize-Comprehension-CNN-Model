@@ -13,9 +13,9 @@ import torch.optim as optim
 from torchviz import make_dot
 from captum.attr import IntegratedGradients
 from torch.autograd import Variable
+import sys
 
-
-csv_path = './Dataset/ENData.csv'
+csv_path = './Dataset/CNData.csv'
 df = pd.read_csv(csv_path)
 
 train_df, test_df = train_test_split(df, test_size=0.2, random_state=3407)
@@ -39,7 +39,7 @@ class CustomDataset(Dataset):
         channel5 = self.dataframe.iloc[idx, [26] + list(range(22, 25))].values.astype('float32')
         channel6 = self.dataframe.iloc[idx, 27:38].values.astype('float32')
         channel7 = self.dataframe.iloc[idx, 38:40].values.astype('float32')
-        output_label = self.dataframe.iloc[idx, 25].astype('float32')
+        output_label = self.dataframe.iloc[idx, 9].astype('float32')
 
         if self.transform:
             channel1 = self.transform(channel1)
@@ -167,13 +167,14 @@ def calculate_mse(model, data_loader, criterion):
 
 if __name__ == "__main__":
 
+    sys.stdout = open('./Record/outputCnIntelligibility.txt', 'w')
+
     custom_transform = CustomTransform()
 
     train_dataset = CustomDataset(train_df, transform=custom_transform)
     test_dataset = CustomDataset(test_df, transform=custom_transform)
 
-
-    batch_size = 40
+    batch_size = 25
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
     test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
 
@@ -183,11 +184,9 @@ if __name__ == "__main__":
     optimizer = optim.AdamW(net.parameters(), lr=0.00001)
 
     for epoch in range(100):
-        running_loss = 0.0
         print(epoch)
         for i, data in enumerate(train_loader, 0):
             _, inputs_tuple, labels = data
-
 
             inputs_processed = []
             for inputs in inputs_tuple:
@@ -203,13 +202,10 @@ if __name__ == "__main__":
             loss.backward()
             optimizer.step()
 
-            running_loss += loss.item()
-            if i % 5 == 4:
-                print(f'[{epoch + 1}, {i + 1:4d}] loss: {running_loss / 5:.3f}')
-                running_loss = 0.0
+            # Now print the loss after every batch
+            print(f'[{epoch + 1}, {i + 1:4d}] loss: {loss.item():.3f}')
 
     print('Finished Training')
-    
 
     net.eval()  
     results = []
@@ -218,20 +214,17 @@ if __name__ == "__main__":
             inputs_processed = [inp.to(torch.float32) for inp in inputs_tuple]
             outputs = net(inputs_processed)
 
-
             for id1, id2, id3, id4, id5, id6, id7, id8, output, label in zip(identifiers[0], identifiers[1], identifiers[2], identifiers[3], identifiers[4], identifiers[5], identifiers[6], identifiers[7], outputs, labels):
                 deviation = output.item() - label.item()
                 results.append([(id1, id2), output.item(), label.item(), deviation])
 
-
     results_df = pd.DataFrame(results, columns=['ID', 'Prediction', 'Actual', 'Deviation'])
-    results_df.to_csv('RMSprop_test_results.csv', index=False)
+    results_df.to_csv('RMSprop_test_results_cn_in.csv', index=False)
 
     test_mse = calculate_mse(net, test_loader, criterion)
     print(f'Mean Squared Error on Test Set: {test_mse}')
 
-
-    PATH = './Models/RMSprop_ajusted_net.pth'
+    PATH = './Models/RMSprop_ajusted_net_cn_in.pth'
     torch.save(net.state_dict(), PATH)
     
     sample_data = next(iter(train_loader))
@@ -241,11 +234,15 @@ if __name__ == "__main__":
 
     output = net(processed_inputs)
 
-
     input_dict = {f'input_{i}': inp for i, inp in enumerate(processed_inputs)}
     dot = make_dot(output, params=dict(list(net.named_parameters()) + list(input_dict.items())))
     
-    dot.render('./Models/RMSprop_network_graph', format='png')
+    dot.render('./Models/RMSprop_network_graph_cn_in', format='png')
+    
+    sys.stdout.close()
+    
+    sys.stdout = sys.__stdout__
+
     
 
 
