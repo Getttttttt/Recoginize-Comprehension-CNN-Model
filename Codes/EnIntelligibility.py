@@ -181,7 +181,7 @@ if __name__ == "__main__":
     net = Net()
 
     criterion = nn.MSELoss()
-    optimizer = optim.AdamW(net.parameters(), lr=0.00001)
+    optimizer = optim.AdamW(net.parameters(), lr=0.0001)
 
     for epoch in range(100):
         print(epoch)
