@@ -167,7 +167,7 @@ def calculate_mse(model, data_loader, criterion):
 
 if __name__ == "__main__":
 
-    sys.stdout = open('./Record/outputCnIntelligibility.txt', 'w')
+    sys.stdout = open('./Record/outputEnIntelligibility.txt', 'w')
 
     custom_transform = CustomTransform()
 
